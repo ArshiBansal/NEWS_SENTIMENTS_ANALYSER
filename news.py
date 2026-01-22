@@ -9,14 +9,13 @@ from collections import defaultdict
 # ── VADER Sentiment ──────────────────────────────────────────────────────────
 analyzer = SentimentIntensityAnalyzer()
 
-# ── Strong headers to avoid 403/blocks on Streamlit Cloud ───────────────────
+# ── Strong headers to avoid 403 blocks on Streamlit Cloud ───────────────────
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
     'Accept': 'application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8',
     'Accept-Language': 'en-US,en;q=0.9',
     'Referer': 'https://www.google.com/',
     'Connection': 'keep-alive',
-    'Accept-Encoding': 'gzip, deflate',
 }
 
 # ── Page config + Enhanced modern theme ─────────────────────────────────────
@@ -144,12 +143,14 @@ with st.sidebar:
 
     st.caption(f"Updated: {datetime.now().strftime('%Y-%m-%d %H:%M IST')}")
 
-# ── Helper function for relative time ────────────────────────────────────────
+# ── Improved relative time parser ───────────────────────────────────────────
 def get_relative_time(pub_date_str):
     if not pub_date_str:
-        return "Date unknown"
+        return "Unknown date"
+
     try:
-        dt = parser.parse(pub_date_str)
+        # More robust parsing: handle common RSS date variations
+        dt = parser.parse(pub_date_str, ignoretz=False)
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
         now = datetime.now(timezone.utc)
@@ -169,8 +170,8 @@ def get_relative_time(pub_date_str):
             return f"{minutes} min{'s' if minutes > 1 else ''} ago"
         else:
             return "Just now"
-    except:
-        return "Date unknown"
+    except Exception:
+        return "Unknown date"
 
 # ── Category classifier ──────────────────────────────────────────────────────
 def classify_article(title, summary, is_crypto):
@@ -188,7 +189,7 @@ def classify_article(title, summary, is_crypto):
         if any(k in text for k in ["bank", "jpmorgan", "financial", "goldman"]): return "Financials & Banking"
         return "Markets & Indices"
 
-# ── RSS fetch functions with debug logging for Streamlit Cloud ──────────────
+# ── RSS fetch functions ──────────────────────────────────────────────────────
 @st.cache_data(ttl=900)
 def get_crypto_news():
     sources = [
@@ -199,11 +200,9 @@ def get_crypto_news():
     for url, src in sources:
         try:
             r = requests.get(url, timeout=20, headers=HEADERS)
-            st.write(f"Debug: {src} → Status: {r.status_code}")
             if r.status_code == 200:
                 soup = BeautifulSoup(r.content, 'html.parser')
                 items = soup.find_all('item')
-                st.write(f"Debug: {src} → Found {len(items)} items")
                 for item in items[:40]:
                     title = item.find('title')
                     desc = item.find('description')
@@ -236,10 +235,8 @@ def get_crypto_news():
                         "pubDate": pub_date_str,
                         "category": category
                     })
-            else:
-                st.write(f"Debug: {src} → Failed with status {r.status_code}")
-        except Exception as e:
-            st.write(f"Debug: {src} → Error: {str(e)}")
+        except:
+            pass  # silent fail — app continues
     return articles
 
 @st.cache_data(ttl=900)
@@ -248,11 +245,9 @@ def get_stock_news():
     articles = []
     try:
         r = requests.get(url, timeout=20, headers=HEADERS)
-        st.write(f"Debug: Yahoo Finance → Status: {r.status_code}")
         if r.status_code == 200:
-            soup = BeautifulSoup(r.content, 'xml')
+            soup = BeautifulSoup(r.content, 'html.parser')
             items = soup.find_all('item')
-            st.write(f"Debug: Yahoo Finance → Found {len(items)} items")
             for item in items[:40]:
                 title = item.find('title')
                 desc = item.find('description')
@@ -285,10 +280,8 @@ def get_stock_news():
                     "pubDate": pub_date_str,
                     "category": category
                 })
-        else:
-            st.write(f"Debug: Yahoo Finance → Failed with status {r.status_code}")
-    except Exception as e:
-        st.write(f"Debug: Yahoo Finance → Error: {str(e)}")
+    except:
+        pass
     return articles
 
 # ── Load news ────────────────────────────────────────────────────────────────
@@ -350,7 +343,7 @@ st.markdown(f"""
 st.subheader(news_type)
 
 if not news_articles:
-    st.info("No news articles loaded right now.\n\nThis is usually caused by RSS feeds blocking requests from cloud platforms like Streamlit Cloud.\n\nTry:\n1. Refreshing the page\n2. Switching news type\n3. Running locally to test\n\nCheck the app logs for debug messages (status codes / errors).")
+    st.info("No news articles loaded right now. Try refreshing or switching news type.")
 else:
     st.success(f"Total articles loaded: {len(news_articles)}")
 
@@ -360,7 +353,7 @@ else:
 
         st.markdown(f'<div class="category-header">{category}</div>', unsafe_allow_html=True)
 
-        display_articles = articles[:10]
+        display_articles = articles[:10]  # max 10
         count = len(display_articles)
 
         st.markdown(f'<div class="category-note">Showing {count} article{"s" if count != 1 else ""}</div>', unsafe_allow_html=True)
