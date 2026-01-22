@@ -201,7 +201,7 @@ def get_crypto_news():
             r = requests.get(url, timeout=20, headers=HEADERS)
             st.write(f"Debug: {src} → Status: {r.status_code}")
             if r.status_code == 200:
-                soup = BeautifulSoup(r.content, 'xml')
+                soup = BeautifulSoup(r.content, 'html.parser')
                 items = soup.find_all('item')
                 st.write(f"Debug: {src} → Found {len(items)} items")
                 for item in items[:40]:
