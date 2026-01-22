@@ -143,35 +143,36 @@ with st.sidebar:
 
     st.caption(f"Updated: {datetime.now().strftime('%Y-%m-%d %H:%M IST')}")
 
-# ── Improved relative time parser ───────────────────────────────────────────
+# ── Robust relative time parser ─────────────────────────────────────────────
 def get_relative_time(pub_date_str):
-    if not pub_date_str:
-        return "Unknown date"
+    if not pub_date_str or not pub_date_str.strip():
+        return "Just now"
+
+    # Clean common RSS date mess
+    pub_date_str = pub_date_str.strip().replace('GMT', '+0000').replace('UTC', '+0000').replace('PDT', '-0700').replace('PST', '-0800')
 
     try:
-        # More robust parsing: handle common RSS date variations
-        dt = parser.parse(pub_date_str, ignoretz=False)
+        dt = parser.parse(pub_date_str, fuzzy=True, ignoretz=False)
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
+
         now = datetime.now(timezone.utc)
         delta = now - dt
 
-        if delta.days > 7:
-            return dt.strftime("%d %b %Y")
-        elif delta.days > 1:
-            return f"{delta.days} days ago"
-        elif delta.days == 1:
-            return "Yesterday"
-        elif delta.seconds >= 3600:
-            hours = delta.seconds // 3600
-            return f"{hours} hour{'s' if hours > 1 else ''} ago"
-        elif delta.seconds >= 60:
-            minutes = delta.seconds // 60
-            return f"{minutes} min{'s' if minutes > 1 else ''} ago"
-        else:
+        if delta.total_seconds() < 60:
             return "Just now"
-    except Exception:
-        return "Unknown date"
+        elif delta.total_seconds() < 3600:
+            mins = int(delta.total_seconds() // 60)
+            return f"{mins} min{'s' if mins > 1 else ''} ago"
+        elif delta.total_seconds() < 86400:  # < 1 day
+            hours = int(delta.total_seconds() // 3600)
+            return f"{hours} hour{'s' if hours > 1 else ''} ago"
+        elif delta.days <= 7:
+            return f"{delta.days} day{'s' if delta.days > 1 else ''} ago"
+        else:
+            return dt.strftime("%d %b %Y")
+    except:
+        return "Just now"  # fallback — better than "Unknown date" for UX
 
 # ── Category classifier ──────────────────────────────────────────────────────
 def classify_article(title, summary, is_crypto):
@@ -236,7 +237,7 @@ def get_crypto_news():
                         "category": category
                     })
         except:
-            pass  # silent fail — app continues
+            pass
     return articles
 
 @st.cache_data(ttl=900)
@@ -353,13 +354,13 @@ else:
 
         st.markdown(f'<div class="category-header">{category}</div>', unsafe_allow_html=True)
 
-        display_articles = articles[:10]  # max 10
+        display_articles = articles[:10]
         count = len(display_articles)
 
         st.markdown(f'<div class="category-note">Showing {count} article{"s" if count != 1 else ""}</div>', unsafe_allow_html=True)
 
         for i, art in enumerate(display_articles):
-            time_ago = get_relative_time(art["pubDate"])
+            time_ago = get_relative_time(art.get("pubDate", ""))
 
             st.markdown(f"""
             <div class="news-card" style="animation-delay: {i*0.08}s;">
