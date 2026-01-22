@@ -1,4 +1,3 @@
-
 <div align="center">
   <img
     src="https://readme-typing-svg.demolab.com?font=Poppins:ital,wght@1,700&weight=700&size=32&duration=4000&pause=1200&color=00CC88&center=true&vCenter=true&width=880&height=120&multiline=true&repeat=false&lines=Creator+was+bored+and+free...;so+they+built+this+instead+of+touching+grass."
@@ -11,6 +10,23 @@
   <b><i>The dashboard that makes free RSS feeds feel like they belong on a Bloomberg terminal.</i></b><br><br>
   <b><i>Steals headlines from feeds that ghost you, runs VADER like it's still peak crypto Twitter, and politely informs you the market is “neutral” while your portfolio quietly considers therapy.</i></b><br>
   <b><i>Congratulations. You've found the only news reader with better judgment than your average finfluencer thread.</i></b>
+</div>
+<br>
+<!-- NEW: Live Deployment Section - placed here so it's one of the first things people see -->
+<div align="center" style="margin: 2.5rem 0;">
+  <a href="https://stocksnews.streamlit.app/" target="_blank" rel="noopener noreferrer">
+    <img 
+      src="https://img.shields.io/badge/Live%20Demo-Open%20Now-brightgreen?style=for-the-badge&logo=streamlit&logoColor=white&color=00CC88" 
+      alt="Live Demo Badge"
+    />
+  </a>
+  <br><br>
+  <p style="font-size: 1.2rem; font-weight: 600; color: #00ff88;">
+    Try it live → <a href="https://stocksnews.streamlit.app/" target="_blank" style="color: #00d4ff; text-decoration: underline;">stocksnews.streamlit.app</a>
+  </p>
+  <p style="font-size: 0.95rem; color: #a0a0cc; margin-top: 0.5rem;">
+    No login, no install — just click and scroll the chaos.
+  </p>
 </div>
 
 <p align="center" style="opacity: 0.7;">• • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • • •</p>
