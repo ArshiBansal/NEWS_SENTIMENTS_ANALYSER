@@ -143,16 +143,18 @@ with st.sidebar:
 
     st.caption(f"Updated: {datetime.now().strftime('%Y-%m-%d %H:%M IST')}")
 
-# ── Robust relative time parser ─────────────────────────────────────────────
+# ── Robust relative time parser (fixed version) ─────────────────────────────
 def get_relative_time(pub_date_str):
     if not pub_date_str or not pub_date_str.strip():
-        return "Just now"
+        return "Age unknown"
 
-    # Clean common RSS date mess
-    pub_date_str = pub_date_str.strip().replace('GMT', '+0000').replace('UTC', '+0000').replace('PDT', '-0700').replace('PST', '-0800')
+    # Clean up common RSS date junk
+    cleaned = pub_date_str.strip().replace('GMT', '+0000').replace('UTC', '+0000') \
+                                  .replace('PDT', '-0700').replace('PST', '-0800') \
+                                  .replace('EST', '-0500').replace('EDT', '-0400')
 
     try:
-        dt = parser.parse(pub_date_str, fuzzy=True, ignoretz=False)
+        dt = parser.parse(cleaned, fuzzy=True)
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
 
@@ -171,8 +173,8 @@ def get_relative_time(pub_date_str):
             return f"{delta.days} day{'s' if delta.days > 1 else ''} ago"
         else:
             return dt.strftime("%d %b %Y")
-    except:
-        return "Just now"  # fallback — better than "Unknown date" for UX
+    except Exception:
+        return "Age unknown"
 
 # ── Category classifier ──────────────────────────────────────────────────────
 def classify_article(title, summary, is_crypto):
