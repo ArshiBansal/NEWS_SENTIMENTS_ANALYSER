@@ -9,6 +9,16 @@ from collections import defaultdict
 # ── VADER Sentiment ──────────────────────────────────────────────────────────
 analyzer = SentimentIntensityAnalyzer()
 
+# ── Strong headers to avoid 403/blocks on Streamlit Cloud ───────────────────
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+    'Accept': 'application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Referer': 'https://www.google.com/',
+    'Connection': 'keep-alive',
+    'Accept-Encoding': 'gzip, deflate',
+}
+
 # ── Page config + Enhanced modern theme ─────────────────────────────────────
 st.set_page_config(page_title="News Pulse", page_icon="📰", layout="wide")
 
@@ -16,9 +26,7 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-    * {
-        font-family: 'Inter', system-ui, sans-serif;
-    }
+    * { font-family: 'Inter', system-ui, sans-serif; }
 
     .stApp {
         background: linear-gradient(135deg, #0f0f1e 0%, #141428 100%);
@@ -54,14 +62,7 @@ st.markdown("""
         100% { background-position: 200% 50%; }
     }
 
-    .subtitle {
-        text-align: center;
-        color: #a0a0ff;
-        font-size: 1.25rem;
-        margin-top: -0.8rem;
-        margin-bottom: 2rem;
-        font-weight: 400;
-    }
+    .subtitle { text-align: center; color: #a0a0ff; font-size: 1.25rem; margin-top: -0.8rem; margin-bottom: 2rem; font-weight: 400; }
 
     .news-card {
         background: rgba(26, 26, 46, 0.75);
@@ -70,25 +71,18 @@ st.markdown("""
         border: 1px solid rgba(0, 255, 136, 0.18);
         border-radius: 16px;
         padding: 1.4rem;
-        margin: 1.2rem 0;
+        margin: 0.8rem 0;
         transition: all 0.35s cubic-bezier(0.165, 0.84, 0.44, 1);
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
         opacity: 0;
         transform: translateY(20px);
         animation: cardFadeIn 0.6s forwards;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
     }
 
-    .news-card:nth-child(1) { animation-delay: 0.1s; }
-    .news-card:nth-child(2) { animation-delay: 0.2s; }
-    .news-card:nth-child(3) { animation-delay: 0.3s; }
-    .news-card:nth-child(4) { animation-delay: 0.4s; }
-
-    @keyframes cardFadeIn {
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
+    @keyframes cardFadeIn { to { opacity: 1; transform: translateY(0); } }
 
     .news-card:hover {
         transform: translateY(-8px) scale(1.015);
@@ -96,88 +90,29 @@ st.markdown("""
         box-shadow: 0 16px 48px rgba(0, 212, 255, 0.18);
     }
 
-    .news-title {
-        margin: 0 0 0.8rem;
-        font-size: 1.28rem;
-        font-weight: 700;
-        line-height: 1.4;
-    }
+    .news-title { margin: 0 0 0.8rem; font-size: 1.28rem; font-weight: 700; line-height: 1.4; }
+    .news-title a { color: #e0e0ff; text-decoration: none; transition: color 0.3s; }
+    .news-title a:hover { color: #00ff88; }
 
-    .news-title a {
-        color: #e0e0ff;
-        text-decoration: none;
-        transition: color 0.3s;
-    }
+    .news-summary { color: #c0c0ff; font-size: 0.98rem; line-height: 1.55; margin: 0.6rem 0 1rem; flex-grow: 1; }
 
-    .news-title a:hover {
-        color: #00ff88;
-    }
+    .meta { display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; color: #9090cc; flex-wrap: wrap; gap: 10px; }
 
-    .news-summary {
-        color: #c0c0ff;
-        font-size: 0.98rem;
-        line-height: 1.55;
-        margin: 0.6rem 0 1rem;
-    }
-
-    .meta {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 0.9rem;
-        color: #9090cc;
-        flex-wrap: wrap;
-        gap: 10px;
-    }
-
-    .sentiment-badge {
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-weight: 600;
-        font-size: 0.85rem;
-    }
-
+    .sentiment-badge { padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 0.85rem; }
     .sentiment-pos { background: rgba(0,255,136,0.15); color: #00ff88; }
     .sentiment-neg  { background: rgba(255,77,148,0.15); color: #ff4d94; }
     .sentiment-neu  { background: rgba(136,136,136,0.15); color: #aaa; }
 
-    .source {
-        color: #00d4ff;
-        font-weight: 500;
-    }
+    .source { color: #00d4ff; font-weight: 500; }
+    .time-ago { font-style: italic; color: #a0a0cc; }
 
-    .time-ago {
-        font-style: italic;
-        color: #a0a0cc;
-    }
-
-    .mood-bar {
-        background: #1a1a2e;
-        border-radius: 12px;
-        padding: 16px;
-        margin: 1.5rem 0;
-        text-align: center;
-        border: 1px solid rgba(0,255,136,0.2);
-    }
-
+    .mood-bar { background: #1a1a2e; border-radius: 12px; padding: 16px; margin: 1.5rem 0; text-align: center; border: 1px solid rgba(0,255,136,0.2); }
     .mood-positive { color: #00ff88; font-weight: 700; font-size: 1.5rem; }
     .mood-negative { color: #ff4d94; font-weight: 700; font-size: 1.5rem; }
     .mood-neutral  { color: #a0a0ff; font-weight: 700; font-size: 1.5rem; }
 
-    .category-header {
-        font-size: 1.9rem;
-        font-weight: 700;
-        color: #00ff88;
-        margin: 2.5rem 0 1.2rem;
-        padding-bottom: 0.6rem;
-        border-bottom: 2px solid rgba(0,255,136,0.35);
-    }
-
-    .category-note {
-        font-size: 0.95rem;
-        color: #a0a0cc;
-        margin: -0.8rem 0 1.4rem 0;
-    }
+    .category-header { font-size: 1.9rem; font-weight: 700; color: #00ff88; margin: 2.5rem 0 1.2rem; padding-bottom: 0.6rem; border-bottom: 2px solid rgba(0,255,136,0.35); }
+    .category-note { font-size: 0.95rem; color: #a0a0cc; margin: -0.8rem 0 1.4rem 0; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -253,7 +188,7 @@ def classify_article(title, summary, is_crypto):
         if any(k in text for k in ["bank", "jpmorgan", "financial", "goldman"]): return "Financials & Banking"
         return "Markets & Indices"
 
-# ── RSS fetch functions ──────────────────────────────────────────────────────
+# ── RSS fetch functions with debug logging for Streamlit Cloud ──────────────
 @st.cache_data(ttl=900)
 def get_crypto_news():
     sources = [
@@ -263,11 +198,13 @@ def get_crypto_news():
     articles = []
     for url, src in sources:
         try:
-            r = requests.get(url, timeout=10, headers={'User-Agent': 'Mozilla/5.0'})
+            r = requests.get(url, timeout=20, headers=HEADERS)
+            st.write(f"Debug: {src} → Status: {r.status_code}")
             if r.status_code == 200:
                 soup = BeautifulSoup(r.content, 'xml')
-                items = soup.find_all('item')[:40]
-                for item in items:
+                items = soup.find_all('item')
+                st.write(f"Debug: {src} → Found {len(items)} items")
+                for item in items[:40]:
                     title = item.find('title')
                     desc = item.find('description')
                     link = item.find('link')
@@ -281,12 +218,8 @@ def get_crypto_news():
 
                     vs = analyzer.polarity_scores(title_text + " " + desc_text)
                     score = vs['compound']
-                    if score >= 0.1:
-                        sentiment, cls = "Positive", "sentiment-pos"
-                    elif score <= -0.1:
-                        sentiment, cls = "Negative", "sentiment-neg"
-                    else:
-                        sentiment, cls = "Neutral", "sentiment-neu"
+                    sentiment = "Positive" if score >= 0.1 else "Negative" if score <= -0.1 else "Neutral"
+                    cls = f"sentiment-{sentiment.lower()[:3]}"
 
                     pub_date_str = pubdate.text if pubdate else ""
 
@@ -303,8 +236,10 @@ def get_crypto_news():
                         "pubDate": pub_date_str,
                         "category": category
                     })
-        except:
-            pass
+            else:
+                st.write(f"Debug: {src} → Failed with status {r.status_code}")
+        except Exception as e:
+            st.write(f"Debug: {src} → Error: {str(e)}")
     return articles
 
 @st.cache_data(ttl=900)
@@ -312,11 +247,13 @@ def get_stock_news():
     url = "https://feeds.finance.yahoo.com/rss/2.0/headline?s=^GSPC,AAPL,TSLA,MSFT,NVDA,GOOGL,AMZN,META"
     articles = []
     try:
-        r = requests.get(url, timeout=10, headers={'User-Agent': 'Mozilla/5.0'})
+        r = requests.get(url, timeout=20, headers=HEADERS)
+        st.write(f"Debug: Yahoo Finance → Status: {r.status_code}")
         if r.status_code == 200:
             soup = BeautifulSoup(r.content, 'xml')
-            items = soup.find_all('item')[:40]
-            for item in items:
+            items = soup.find_all('item')
+            st.write(f"Debug: Yahoo Finance → Found {len(items)} items")
+            for item in items[:40]:
                 title = item.find('title')
                 desc = item.find('description')
                 link = item.find('link')
@@ -330,12 +267,8 @@ def get_stock_news():
 
                 vs = analyzer.polarity_scores(title_text + " " + desc_text)
                 score = vs['compound']
-                if score >= 0.1:
-                    sentiment, cls = "Positive", "sentiment-pos"
-                elif score <= -0.1:
-                    sentiment, cls = "Negative", "sentiment-neg"
-                else:
-                    sentiment, cls = "Neutral", "sentiment-neu"
+                sentiment = "Positive" if score >= 0.1 else "Negative" if score <= -0.1 else "Neutral"
+                cls = f"sentiment-{sentiment.lower()[:3]}"
 
                 pub_date_str = pubdate.text if pubdate else ""
 
@@ -352,8 +285,10 @@ def get_stock_news():
                     "pubDate": pub_date_str,
                     "category": category
                 })
-    except:
-        pass
+        else:
+            st.write(f"Debug: Yahoo Finance → Failed with status {r.status_code}")
+    except Exception as e:
+        st.write(f"Debug: Yahoo Finance → Error: {str(e)}")
     return articles
 
 # ── Load news ────────────────────────────────────────────────────────────────
@@ -391,7 +326,7 @@ for art in news_articles:
     grouped[art["category"]].append(art)
 
 # ── Market Mood ──────────────────────────────────────────────────────────────
-scores = [art['compound'] for art in news_articles]
+scores = [art['compound'] for art in news_articles if 'compound' in art]
 avg_score = sum(scores) / len(scores) if scores else 0
 
 if avg_score > 0.05:
@@ -411,11 +346,11 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ── Display grouped by category (single column) ──────────────────────────────
+# ── Display grouped by category ──────────────────────────────────────────────
 st.subheader(news_type)
 
 if not news_articles:
-    st.info("No news articles loaded right now. Try refreshing or switching news type.")
+    st.info("No news articles loaded right now.\n\nThis is usually caused by RSS feeds blocking requests from cloud platforms like Streamlit Cloud.\n\nTry:\n1. Refreshing the page\n2. Switching news type\n3. Running locally to test\n\nCheck the app logs for debug messages (status codes / errors).")
 else:
     st.success(f"Total articles loaded: {len(news_articles)}")
 
@@ -425,7 +360,7 @@ else:
 
         st.markdown(f'<div class="category-header">{category}</div>', unsafe_allow_html=True)
 
-        display_articles = articles[:10]  # max 10
+        display_articles = articles[:10]
         count = len(display_articles)
 
         st.markdown(f'<div class="category-note">Showing {count} article{"s" if count != 1 else ""}</div>', unsafe_allow_html=True)
