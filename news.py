@@ -1,382 +1,242 @@
-import streamlit as st
-import requests
-from bs4 import BeautifulSoup
-from datetime import datetime, timezone
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-from dateutil import parser
+import csv
+import io
 from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 
-# ── VADER Sentiment ──────────────────────────────────────────────────────────
-analyzer = SentimentIntensityAnalyzer()
+import streamlit as st
 
-# ── Strong headers to avoid 403 blocks on Streamlit Cloud ───────────────────
-HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
-    'Accept': 'application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8',
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Referer': 'https://www.google.com/',
-    'Connection': 'keep-alive',
+from news_data import fetch_feed, get_relative_time, parse_published_date
+
+
+FEEDS = {
+    "Crypto": [
+        ("https://www.coindesk.com/arc/outboundfeeds/rss/", "CoinDesk", True),
+        ("https://cointelegraph.com/rss", "CoinTelegraph", True),
+    ],
+    "Stocks": [
+        (
+            "https://feeds.finance.yahoo.com/rss/2.0/headline?s=^GSPC,AAPL,TSLA,MSFT,NVDA,GOOGL,AMZN,META",
+            "Yahoo Finance",
+            False,
+        ),
+    ],
 }
 
-# ── Page config + Enhanced modern theme ─────────────────────────────────────
 st.set_page_config(page_title="News Pulse", page_icon="📰", layout="wide")
-
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-
-    * { font-family: 'Inter', system-ui, sans-serif; }
-
-    .stApp {
-        background: linear-gradient(135deg, #0f0f1e 0%, #141428 100%);
-        color: #e0e0ff;
-        background-attachment: fixed;
-    }
-
-    .stApp::before {
-        content: "";
-        position: fixed;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background: radial-gradient(circle at 10% 20%, rgba(0,255,136,0.03) 0%, transparent 50%),
-                    radial-gradient(circle at 90% 80%, rgba(0,212,255,0.03) 0%, transparent 50%);
-        pointer-events: none;
-        z-index: -1;
-    }
-
-    .main-header {
-        font-size: 4.2rem;
-        font-weight: 800;
-        text-align: center;
-        background: linear-gradient(90deg, #00ff88, #00d4ff, #7c3aed, #ff00aa);
-        background-size: 200% auto;
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        animation: gradientFlow 8s linear infinite;
-        margin: 1.5rem 0 0.5rem;
-        text-shadow: 0 0 20px rgba(0,255,136,0.4);
-    }
-
-    @keyframes gradientFlow {
-        0% { background-position: 0% 50%; }
-        100% { background-position: 200% 50%; }
-    }
-
-    .subtitle { text-align: center; color: #a0a0ff; font-size: 1.25rem; margin-top: -0.8rem; margin-bottom: 2rem; font-weight: 400; }
-
-    .news-card {
-        background: rgba(26, 26, 46, 0.75);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border: 1px solid rgba(0, 255, 136, 0.18);
-        border-radius: 16px;
-        padding: 1.4rem;
-        margin: 0.8rem 0;
-        transition: all 0.35s cubic-bezier(0.165, 0.84, 0.44, 1);
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
-        opacity: 0;
-        transform: translateY(20px);
-        animation: cardFadeIn 0.6s forwards;
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-    }
-
-    @keyframes cardFadeIn { to { opacity: 1; transform: translateY(0); } }
-
-    .news-card:hover {
-        transform: translateY(-8px) scale(1.015);
-        border-color: #00d4ff;
-        box-shadow: 0 16px 48px rgba(0, 212, 255, 0.18);
-    }
-
-    .news-title { margin: 0 0 0.8rem; font-size: 1.28rem; font-weight: 700; line-height: 1.4; }
-    .news-title a { color: #e0e0ff; text-decoration: none; transition: color 0.3s; }
-    .news-title a:hover { color: #00ff88; }
-
-    .news-summary { color: #c0c0ff; font-size: 0.98rem; line-height: 1.55; margin: 0.6rem 0 1rem; flex-grow: 1; }
-
-    .meta { display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; color: #9090cc; flex-wrap: wrap; gap: 10px; }
-
-    .sentiment-badge { padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 0.85rem; }
-    .sentiment-pos { background: rgba(0,255,136,0.15); color: #00ff88; }
-    .sentiment-neg  { background: rgba(255,77,148,0.15); color: #ff4d94; }
-    .sentiment-neu  { background: rgba(136,136,136,0.15); color: #aaa; }
-
-    .source { color: #00d4ff; font-weight: 500; }
-    .time-ago { font-style: italic; color: #a0a0cc; }
-
-    .mood-bar { background: #1a1a2e; border-radius: 12px; padding: 16px; margin: 1.5rem 0; text-align: center; border: 1px solid rgba(0,255,136,0.2); }
-    .mood-positive { color: #00ff88; font-weight: 700; font-size: 1.5rem; }
-    .mood-negative { color: #ff4d94; font-weight: 700; font-size: 1.5rem; }
-    .mood-neutral  { color: #a0a0ff; font-weight: 700; font-size: 1.5rem; }
-
-    .category-header { font-size: 1.9rem; font-weight: 700; color: #00ff88; margin: 2.5rem 0 1.2rem; padding-bottom: 0.6rem; border-bottom: 2px solid rgba(0,255,136,0.35); }
-    .category-note { font-size: 0.95rem; color: #a0a0cc; margin: -0.8rem 0 1.4rem 0; }
-</style>
-""", unsafe_allow_html=True)
-
-# ── Header ───────────────────────────────────────────────────────────────────
-st.markdown('<h1 class="main-header">News Pulse</h1>', unsafe_allow_html=True)
 st.markdown(
-    "<p class='subtitle'>Live Crypto & Stock News • Real-time Sentiment Analysis</p>",
-    unsafe_allow_html=True
+    """
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    * { font-family: 'Inter', system-ui, sans-serif; }
+    .stApp { background: linear-gradient(135deg, #0f0f1e 0%, #141428 100%); color: #e0e0ff; }
+    .main-title {
+        text-align: center; font-size: clamp(2.5rem, 7vw, 4.2rem); font-weight: 800;
+        background: linear-gradient(90deg, #00ff88, #00d4ff, #7c3aed);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        margin: 1.2rem 0 0;
+    }
+    .subtitle { text-align: center; color: #a0a0cc; margin: 0 0 2rem; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+st.markdown('<h1 class="main-title">News Pulse</h1>', unsafe_allow_html=True)
+st.markdown(
+    '<p class="subtitle">Crypto and stock headlines with a quick, explainable sentiment estimate</p>',
+    unsafe_allow_html=True,
 )
 
-# ── Sidebar controls ─────────────────────────────────────────────────────────
+
+@st.cache_data(ttl=900)
+def cached_fetch_feed(url, source, is_crypto):
+    return fetch_feed(url, source, is_crypto)
+
+
+def build_csv(articles):
+    output = io.StringIO(newline="")
+    columns = ["title", "summary", "link", "source", "category", "sentiment", "compound", "pubDate"]
+    writer = csv.DictWriter(output, fieldnames=columns, extrasaction="ignore")
+    writer.writeheader()
+    writer.writerows(articles)
+    return output.getvalue().encode("utf-8-sig")
+
+
 with st.sidebar:
     st.title("News Pulse")
-    st.markdown("---")
-
-    news_type = st.radio("News Type", ["Crypto News", "Stock News"], index=0)
-
-    search_query = st.text_input("🔍 Filter news", placeholder="bitcoin, tesla, ETF...", key="search")
-    search_query = search_query.strip().lower()
-
+    news_type = st.selectbox("News type", ["All news", "Crypto news", "Stock news"])
+    search_query = st.text_input("Search headlines", placeholder="bitcoin, Tesla, ETF...")
     sort_option = st.selectbox(
         "Sort by",
         ["Newest first", "Most positive sentiment", "Most negative sentiment"],
-        index=0
+    )
+    timeframe = st.selectbox("Published", ["Any time", "Past 24 hours", "Past 7 days"])
+
+    refresh = st.button("Refresh feeds now", use_container_width=True)
+    st.caption("Feed results are cached for 15 minutes.")
+
+if refresh:
+    cached_fetch_feed.clear()
+    st.rerun()
+
+if news_type == "Crypto news":
+    selected_feeds = FEEDS["Crypto"]
+elif news_type == "Stock news":
+    selected_feeds = FEEDS["Stocks"]
+else:
+    selected_feeds = FEEDS["Crypto"] + FEEDS["Stocks"]
+
+articles = []
+feed_errors = []
+with st.spinner("Loading headlines..."):
+    for url, source, is_crypto in selected_feeds:
+        feed_articles, error = cached_fetch_feed(url, source, is_crypto)
+        articles.extend(feed_articles)
+        if error:
+            feed_errors.append(error)
+
+deduplicated = []
+seen_articles = set()
+for article in articles:
+    key = article["link"].rstrip("/").casefold() or (
+        article["source"].casefold(),
+        article["title"].strip().casefold(),
+    )
+    if key not in seen_articles:
+        seen_articles.add(key)
+        deduplicated.append(article)
+
+if feed_errors:
+    for error in feed_errors:
+        st.warning(error)
+
+with st.expander("Feed status"):
+    for _, source, _ in selected_feeds:
+        source_error = next((error for error in feed_errors if error.startswith(source)), "")
+        if source_error:
+            st.error(source_error)
+        else:
+            source_count = sum(article["source"] == source for article in articles)
+            st.success(f"{source}: {source_count} article(s) loaded")
+
+categories = sorted({article["category"] for article in deduplicated})
+sources = sorted({article["source"] for article in deduplicated})
+with st.sidebar:
+    selected_categories = st.multiselect("Categories", categories, default=categories)
+    selected_sentiments = st.multiselect(
+        "Sentiment",
+        ["Positive", "Neutral", "Negative"],
+        default=["Positive", "Neutral", "Negative"],
+    )
+    selected_sources = st.multiselect("Sources", sources, default=sources)
+    articles_per_category = st.slider("Articles per category", 1, 25, 10)
+
+filtered_articles = []
+cutoff = None
+if timeframe == "Past 24 hours":
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+elif timeframe == "Past 7 days":
+    cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+
+query = search_query.strip().casefold()
+for article in deduplicated:
+    searchable_text = " ".join(
+        (article["title"], article["summary"], article["source"], article["category"])
+    ).casefold()
+    published = parse_published_date(article["pubDate"])
+    if query and query not in searchable_text:
+        continue
+    if article["category"] not in selected_categories:
+        continue
+    if article["sentiment"] not in selected_sentiments:
+        continue
+    if article["source"] not in selected_sources:
+        continue
+    if cutoff and (published is None or published < cutoff):
+        continue
+    filtered_articles.append(article)
+
+if sort_option == "Newest first":
+    filtered_articles.sort(
+        key=lambda article: parse_published_date(article["pubDate"])
+        or datetime.min.replace(tzinfo=timezone.utc),
+        reverse=True,
+    )
+elif sort_option == "Most positive sentiment":
+    filtered_articles.sort(key=lambda article: article["compound"], reverse=True)
+else:
+    filtered_articles.sort(key=lambda article: article["compound"])
+
+scores = [article["compound"] for article in filtered_articles]
+average_score = sum(scores) / len(scores) if scores else 0
+positive_count = sum(score >= 0.1 for score in scores)
+negative_count = sum(score <= -0.1 for score in scores)
+neutral_count = len(scores) - positive_count - negative_count
+mood = (
+    "Positive" if average_score > 0.05
+    else "Negative" if average_score < -0.05
+    else "Neutral"
+)
+
+metric_columns = st.columns(4)
+metric_columns[0].metric("Articles", len(filtered_articles))
+metric_columns[1].metric("Average sentiment", f"{average_score:+.2f}")
+metric_columns[2].metric("Overall tone", mood)
+metric_columns[3].metric("Sources", len({article["source"] for article in filtered_articles}))
+
+chart_column, export_column = st.columns([3, 1])
+with chart_column:
+    st.caption("Sentiment distribution (VADER compound score thresholds: ±0.10)")
+    st.bar_chart(
+        {
+            "Sentiment": ["Positive", "Neutral", "Negative"],
+            "Articles": [positive_count, neutral_count, negative_count],
+        },
+        x="Sentiment",
+        y="Articles",
+    )
+with export_column:
+    st.download_button(
+        "Download filtered news as CSV",
+        data=build_csv(filtered_articles),
+        file_name="news-pulse.csv",
+        mime="text/csv",
+        disabled=not filtered_articles,
+        use_container_width=True,
     )
 
-    if st.button("Refresh News", use_container_width=True):
-        st.rerun()
-
-    st.caption(f"Updated: {datetime.now().strftime('%Y-%m-%d %H:%M IST')}")
-
-# ── Robust relative time parser (fixed version) ─────────────────────────────
-def get_relative_time(pub_date_str):
-    if not pub_date_str or not pub_date_str.strip():
-        return "Age unknown"
-
-    # Clean up common RSS date junk
-    cleaned = pub_date_str.strip().replace('GMT', '+0000').replace('UTC', '+0000') \
-                                  .replace('PDT', '-0700').replace('PST', '-0800') \
-                                  .replace('EST', '-0500').replace('EDT', '-0400')
-
-    try:
-        dt = parser.parse(cleaned, fuzzy=True)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-
-        now = datetime.now(timezone.utc)
-        delta = now - dt
-
-        if delta.total_seconds() < 60:
-            return "Just now"
-        elif delta.total_seconds() < 3600:
-            mins = int(delta.total_seconds() // 60)
-            return f"{mins} min{'s' if mins > 1 else ''} ago"
-        elif delta.total_seconds() < 86400:  # < 1 day
-            hours = int(delta.total_seconds() // 3600)
-            return f"{hours} hour{'s' if hours > 1 else ''} ago"
-        elif delta.days <= 7:
-            return f"{delta.days} day{'s' if delta.days > 1 else ''} ago"
-        else:
-            return dt.strftime("%d %b %Y")
-    except Exception:
-        return "Age unknown"
-
-# ── Category classifier ──────────────────────────────────────────────────────
-def classify_article(title, summary, is_crypto):
-    text = (title + " " + summary).lower()
-    if is_crypto:
-        if any(k in text for k in ["bitcoin", "btc"]): return "Bitcoin & Major Coins"
-        if any(k in text for k in ["defi", "uniswap", "aave", "stablecoin", "usdt", "usdc"]): return "DeFi & Stablecoins"
-        if any(k in text for k in ["sec", "regulation", "etf", "cftc", "ban", "tax", "policy"]): return "Regulation & Policy"
-        if any(k in text for k in ["nft", "gaming", "metaverse"]): return "NFTs & Gaming"
-        return "Markets & Trading"
-    else:
-        if any(k in text for k in ["apple", "microsoft", "nvidia", "google", "meta", "tech", "ai"]): return "Technology & IT"
-        if any(k in text for k in ["earning", "earnings", "quarter", "revenue", "profit"]): return "Earnings & Companies"
-        if any(k in text for k in ["fed", "inflation", "rate", "gdp", "jobs", "economy"]): return "Macro & Economy"
-        if any(k in text for k in ["bank", "jpmorgan", "financial", "goldman"]): return "Financials & Banking"
-        return "Markets & Indices"
-
-# ── RSS fetch functions ──────────────────────────────────────────────────────
-@st.cache_data(ttl=900)
-def get_crypto_news():
-    sources = [
-        ("https://www.coindesk.com/arc/outboundfeeds/rss/", "CoinDesk"),
-        ("https://cointelegraph.com/rss", "CoinTelegraph")
-    ]
-    articles = []
-    for url, src in sources:
-        try:
-            r = requests.get(url, timeout=20, headers=HEADERS)
-            if r.status_code == 200:
-                soup = BeautifulSoup(r.content, 'html.parser')
-                items = soup.find_all('item')
-                for item in items[:40]:
-                    title = item.find('title')
-                    desc = item.find('description')
-                    link = item.find('link')
-                    pubdate = item.find('pubDate')
-
-                    title_text = title.text.strip() if title else ''
-                    desc_text = desc.text.strip() if desc else ''
-                    link_text = link.text.strip() if link else ''
-
-                    if not title_text: continue
-
-                    vs = analyzer.polarity_scores(title_text + " " + desc_text)
-                    score = vs['compound']
-                    sentiment = "Positive" if score >= 0.1 else "Negative" if score <= -0.1 else "Neutral"
-                    cls = f"sentiment-{sentiment.lower()[:3]}"
-
-                    pub_date_str = pubdate.text if pubdate else ""
-
-                    category = classify_article(title_text, desc_text, True)
-
-                    articles.append({
-                        "title": title_text,
-                        "summary": desc_text[:280] + "..." if len(desc_text) > 280 else desc_text,
-                        "link": link_text,
-                        "sentiment": sentiment,
-                        "cls": cls,
-                        "source": src,
-                        "compound": score,
-                        "pubDate": pub_date_str,
-                        "category": category
-                    })
-        except:
-            pass
-    return articles
-
-@st.cache_data(ttl=900)
-def get_stock_news():
-    url = "https://feeds.finance.yahoo.com/rss/2.0/headline?s=^GSPC,AAPL,TSLA,MSFT,NVDA,GOOGL,AMZN,META"
-    articles = []
-    try:
-        r = requests.get(url, timeout=20, headers=HEADERS)
-        if r.status_code == 200:
-            soup = BeautifulSoup(r.content, 'html.parser')
-            items = soup.find_all('item')
-            for item in items[:40]:
-                title = item.find('title')
-                desc = item.find('description')
-                link = item.find('link')
-                pubdate = item.find('pubDate')
-
-                title_text = title.text.strip() if title else ''
-                desc_text = desc.text.strip() if desc else ''
-                link_text = link.text.strip() if link else ''
-
-                if not title_text: continue
-
-                vs = analyzer.polarity_scores(title_text + " " + desc_text)
-                score = vs['compound']
-                sentiment = "Positive" if score >= 0.1 else "Negative" if score <= -0.1 else "Neutral"
-                cls = f"sentiment-{sentiment.lower()[:3]}"
-
-                pub_date_str = pubdate.text if pubdate else ""
-
-                category = classify_article(title_text, desc_text, False)
-
-                articles.append({
-                    "title": title_text,
-                    "summary": desc_text[:280] + "..." if len(desc_text) > 280 else desc_text,
-                    "link": link_text,
-                    "sentiment": sentiment,
-                    "cls": cls,
-                    "source": "Yahoo Finance",
-                    "compound": score,
-                    "pubDate": pub_date_str,
-                    "category": category
-                })
-    except:
-        pass
-    return articles
-
-# ── Load news ────────────────────────────────────────────────────────────────
-with st.spinner("Loading latest news..."):
-    if news_type == "Crypto News":
-        news_articles = get_crypto_news()
-    else:
-        news_articles = get_stock_news()
-
-# ── Apply search filter ──────────────────────────────────────────────────────
-if search_query:
-    news_articles = [
-        art for art in news_articles
-        if search_query in (art["title"] + " " + art["summary"]).lower()
-    ]
-
-# ── Sorting ──────────────────────────────────────────────────────────────────
-def get_sort_key(article):
-    if sort_option == "Newest first":
-        try:
-            return parser.parse(article["pubDate"]) if article["pubDate"] else datetime.min
-        except:
-            return datetime.min
-    elif sort_option == "Most positive sentiment":
-        return article["compound"]
-    elif sort_option == "Most negative sentiment":
-        return -article["compound"]
-    return 0
-
-news_articles.sort(key=get_sort_key, reverse=True)
-
-# ── Group by category ────────────────────────────────────────────────────────
-grouped = defaultdict(list)
-for art in news_articles:
-    grouped[art["category"]].append(art)
-
-# ── Market Mood ──────────────────────────────────────────────────────────────
-scores = [art['compound'] for art in news_articles if 'compound' in art]
-avg_score = sum(scores) / len(scores) if scores else 0
-
-if avg_score > 0.05:
-    mood_class = "mood-positive"
-    mood_text = f"Bullish ({round(avg_score * 100, 1)}%)"
-elif avg_score < -0.05:
-    mood_class = "mood-negative"
-    mood_text = f"Bearish ({round(-avg_score * 100, 1)}%)"
-else:
-    mood_class = "mood-neutral"
-    mood_text = f"Neutral ({round(avg_score * 100, 1)}%)"
-
-st.markdown(f"""
-<div class="mood-bar">
-    <div style="font-size:1.5rem; margin-bottom:8px;">Market Mood</div>
-    <div class="{mood_class}" style="font-size:2.1rem;">{mood_text}</div>
-</div>
-""", unsafe_allow_html=True)
-
-# ── Display grouped by category ──────────────────────────────────────────────
 st.subheader(news_type)
-
-if not news_articles:
-    st.info("No news articles loaded right now. Try refreshing or switching news type.")
+if not filtered_articles:
+    if feed_errors and not deduplicated:
+        st.error("No feeds could be loaded. Check the source status above and try again later.")
+    else:
+        st.info("No articles match these filters. Try changing the search or filter selections.")
 else:
-    st.success(f"Total articles loaded: {len(news_articles)}")
+    st.caption(f"Showing {len(filtered_articles)} filtered article(s).")
+    grouped = defaultdict(list)
+    for article in filtered_articles:
+        grouped[article["category"]].append(article)
 
-    for category, articles in grouped.items():
-        if len(articles) == 0:
-            continue
+    for category, category_articles in grouped.items():
+        st.markdown(f"### {category}")
+        if len(category_articles) > articles_per_category:
+            st.caption(
+                f"Showing {articles_per_category} of {len(category_articles)} articles in this category."
+            )
+        for article in category_articles[:articles_per_category]:
+            with st.container(border=True):
+                st.subheader(article["title"])
+                if article["summary"]:
+                    st.write(article["summary"])
+                details = (
+                    f"{article['sentiment']} ({article['compound']:+.2f}) · "
+                    f"{article['source']} · {get_relative_time(article['pubDate'])}"
+                )
+                st.caption(details)
+                if article["link"]:
+                    st.link_button("Open original article", article["link"])
 
-        st.markdown(f'<div class="category-header">{category}</div>', unsafe_allow_html=True)
-
-        display_articles = articles[:10]
-        count = len(display_articles)
-
-        st.markdown(f'<div class="category-note">Showing {count} article{"s" if count != 1 else ""}</div>', unsafe_allow_html=True)
-
-        for i, art in enumerate(display_articles):
-            time_ago = get_relative_time(art.get("pubDate", ""))
-
-            st.markdown(f"""
-            <div class="news-card" style="animation-delay: {i*0.08}s;">
-                <p class="news-title">
-                    <a href="{art['link']}" target="_blank">{art['title']}</a>
-                </p>
-                <p class="news-summary">{art['summary']}</p>
-                <div class="meta">
-                    <span class="sentiment-badge {art['cls']}">{art['sentiment']}</span>
-                    <span class="source">{art['source']}</span>
-                    <span class="time-ago">{time_ago}</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-st.markdown("---")
-st.caption("Crypto News: CoinDesk + CoinTelegraph RSS | Stock News: Yahoo Finance RSS | Sentiment: VADER")
+st.divider()
+st.caption(
+    "Sources: CoinDesk, CoinTelegraph, and Yahoo Finance RSS. "
+    "VADER analyzes headline wording and is not a measure of market performance or investment advice."
+)
