@@ -16,9 +16,9 @@ Browse crypto and stock headlines, compare their language, and export the storie
 
 > [!NOTE]
 > News Pulse analyzes **headline wording**—not ~~price predictions~~ or investment recommendations.
-> <ins>Use the score to triage; verify the story at its source.</ins>
+> *Use the score to triage; verify the story at its source.*
 
-## 🧭 At a glance
+## At a glance
 
 | Capability | Details |
 |:--|:--|
@@ -30,13 +30,22 @@ Browse crypto and stock headlines, compare their language, and export the storie
 | Export | Download the filtered results as CSV |
 | Recover | Inspect per-feed status; manually refresh cached results |
 
-### A typical session
+### From question to reading list
 
-1. Select **Crypto news**, **Stock news**, or **All news**.
-2. Search a topic, then use category, source, sentiment, and date filters to focus the list.
-3. Sort the results and open an article at its original publisher.
-4. Review the sentiment summary as a description of the current selection—not as a market signal.
-5. Export the filtered stories if you need to continue the analysis elsewhere.
+```mermaid
+flowchart TD
+    A[Choose crypto, stocks, or all news] --> B[Search for a topic]
+    B --> C[Filter by source, category, sentiment, or time]
+    C --> D[Sort the remaining headlines]
+    D --> E{Need the original context?}
+    E -- Yes --> F[Open the publisher's article]
+    E -- Not yet --> G[Review score distribution and average]
+    F --> G
+    G --> H{Keep this selection?}
+    H -- Yes --> I[Export filtered stories to CSV]
+    H -- No --> J[Adjust filters and continue]
+    J --> C
+```
 
 <details>
 <summary><strong>What does the sentiment score mean?</strong></summary>
@@ -46,28 +55,28 @@ VADER assigns a compound score between **−1.00** and **+1.00** to the headline
 
 | Compound score | Label |
 |:--:|:--|
-| `≤ -0.10` | 🔵 Negative |
-| `> -0.10` and `< 0.10` | ⚪ Neutral |
-| `≥ 0.10` | 🟢 Positive |
+| `≤ -0.10` | Negative |
+| `> -0.10` and `< 0.10` | Neutral |
+| `≥ 0.10` | Positive |
 
 The dashboard's average and overall tone use the articles left after filters are applied. VADER is a general-purpose, lexicon-based analyzer; it does not understand the complete article or financial context.
 
 </details>
 
-## ⚙️ How a story reaches the dashboard
+## How a headline becomes a result
 
 ```mermaid
 flowchart LR
-    A[CoinDesk] --> D[Fetch configured feeds]
+    A[CoinDesk] --> D[Fetch each configured feed]
     B[CoinTelegraph] --> D
     C[Yahoo Finance] --> D
-    D --> E[Parse RSS or Atom]
-    E --> F[Normalize headline, summary, URL, date]
-    F --> G[Score sentiment and assign category]
-    G --> H[Remove duplicate stories]
-    H --> I[Search, filter, and sort]
+    D --> E[Parse RSS or Atom entries]
+    E --> F[Normalize headline, summary, URL, and date]
+    F --> G[Score text and assign keyword category]
+    G --> H[Combine results and remove duplicates]
+    H --> I[Apply search, filters, and sort]
     I --> J[Dashboard and sentiment chart]
-    I --> K[CSV download]
+    I --> K[Filtered CSV]
 ```
 
 | Stage | What happens |
@@ -78,7 +87,27 @@ flowchart LR
 | Enrich | Headline sentiment and a keyword-based category are added. |
 | Present | Duplicate stories are removed, then the selected filters and sort order are applied. |
 
-## 🛰️ Sources and refresh behavior
+### A feed fails; the dashboard keeps going
+
+Each configured provider is fetched separately. A failure is reported against that source; it does not prevent already-loaded stories from other providers from being displayed.
+
+```mermaid
+flowchart TD
+    A[Request a feed] --> B{Request succeeds?}
+    B -- No: timeout or HTTP error --> E[Record source-specific error]
+    B -- Yes --> C{Feed within size limit?}
+    C -- No --> E
+    C -- Yes --> D{Valid RSS or Atom with readable entries?}
+    D -- No --> E
+    D -- Yes --> F[Add normalized articles]
+    E --> G[Continue with next source]
+    F --> G
+    G --> H{More sources?}
+    H -- Yes --> A
+    H -- No --> I[Render available results and source status]
+```
+
+## Sources and refresh behavior
 
 | Market | Source | Feed |
 |:--|:--|:--|
@@ -90,7 +119,7 @@ Feed results are cached for **15 minutes**. **Refresh feeds now** clears that ca
 
 > **Operational note:** a successful app deployment does not guarantee every publisher's feed is reachable at all times. Check the **Feed status** panel when a source appears empty.
 
-## 🖥️ Run locally
+## Run locally
 
 **Prerequisites:** Python 3.10 or later and internet access for the feeds. No API keys or database are required.
 
@@ -107,7 +136,7 @@ Run the unit tests:
 python -m unittest discover -s tests -v
 ```
 
-## ☁️ Deploy on Streamlit Community Cloud
+## Deploy on Streamlit Community Cloud
 
 The repository is arranged for Community Cloud:
 
@@ -120,7 +149,7 @@ The repository is arranged for Community Cloud:
 
 Connect the repository and branch in Streamlit Community Cloud, then select the root-level `news.py` entrypoint. See [DEPLOYMENT.md](./DEPLOYMENT.md) for deployment and troubleshooting details.
 
-## 🧰 Project map
+## Project map
 
 ```text
 .
@@ -146,7 +175,7 @@ Connect the repository and branch in Streamlit Community Cloud, then select the 
 
 GitHub Actions runs unit tests and syntax checks on Python 3.11, 3.12, and 3.13 for pushes and pull requests.
 
-## 🔎 Scope, limits, and interpretation
+## Scope, limits, and interpretation
 
 - **Sentiment is not prediction.** Headlines can be sarcastic, ambiguous, or financially nuanced; scores may miss that context.
 - **Categories are keyword-based.** A story may be assigned to an imperfect category.
