@@ -1,0 +1,2 @@
+python3-spacy
+python3-spacy-en-core-web-sm
