@@ -2,6 +2,8 @@ import unittest
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
+import requests
+
 from news_data import (
     classify_article,
     fetch_feed,
@@ -132,14 +134,15 @@ class NewsDataTests(unittest.TestCase):
         response.close.assert_called_once()
 
     @patch("news_data.requests.get")
-    def test_fetch_feed_reports_network_errors(self, mock_get):
-        import requests
-
+    @patch("news_data.time.sleep")
+    def test_fetch_feed_reports_network_errors(self, mock_sleep, mock_get):
         mock_get.side_effect = requests.Timeout("timed out")
         articles, error = fetch_feed("https://example.com/rss", "Example", False)
 
         self.assertEqual(articles, [])
         self.assertIn("Example could not be loaded", error)
+        self.assertEqual(mock_get.call_count, 3)
+        mock_sleep.assert_called()
 
 
 if __name__ == "__main__":
