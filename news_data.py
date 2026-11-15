@@ -102,9 +102,16 @@ def _get_nlp() -> Any:
             return _nlp
 
         # Download using spacy CLI with SPACY_HOME set
-        subprocess.check_call([
-            sys.executable, "-m", "spacy", "download", "en_core_web_sm"
-        ], env=env)
+        try:
+            subprocess.check_call([
+                sys.executable, "-m", "spacy", "download", "en_core_web_sm"
+            ], env=env, timeout=120)
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+            # spaCy download failed - create a dummy NLP that returns no entities
+            import warnings
+            warnings.warn(f"spaCy model download failed: {e}. Entity extraction disabled.")
+            _nlp = _DummyNLP()
+            return _nlp
 
         # Find the downloaded model (spacy creates versioned subdirectory)
         model_path = find_model_path(model_dir)
@@ -113,6 +120,29 @@ def _get_nlp() -> Any:
 
         _nlp = spacy.load(str(model_path), disable=["parser", "tagger", "lemmatizer"])
     return _nlp
+
+
+class _DummyNLP:
+    """Fallback NLP that returns no entities when spaCy is unavailable."""
+    def __call__(self, text: str) -> Any:
+        class _DummyDoc:
+            ents = []
+        return _DummyDoc()
+    
+    def pipe(self, texts, **kwargs):
+        for _ in texts:
+            yield self("")
+
+
+def extract_entities(text: str) -> list[dict[str, str]]:
+    """Extract named entities from text using spaCy NER."""
+    nlp = _get_nlp()
+    doc = nlp(text)
+    entities = []
+    for ent in doc.ents:
+        if ent.label_ in ENTITY_TYPES:
+            entities.append({"text": ent.text, "label": ent.label_})
+    return entities
 
 
 def parse_published_date(value: str | None) -> datetime | None:
