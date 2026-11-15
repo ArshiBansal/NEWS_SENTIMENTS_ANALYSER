@@ -4,6 +4,7 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
 .coverage
 htmlcov/
 .env
@@ -14,3 +15,10 @@ htmlcov/
 .vscode/
 .DS_Store
 Thumbs.db
+*.log
+dist/
+build/
+*.egg-info/
+.pytype/
+.cache/
+.coverage.*
