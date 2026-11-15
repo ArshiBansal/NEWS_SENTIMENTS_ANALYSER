@@ -66,16 +66,10 @@ ArticleDict = dict[str, Any]
 
 
 def _get_nlp() -> Any:
-    """Lazily load spaCy model, downloading if needed."""
+    """Lazily load spaCy model."""
     global _nlp
     if _nlp is None:
-        try:
-            _nlp = spacy.load("en_core_web_sm", disable=["parser", "tagger", "lemmatizer"])
-        except OSError:
-            import subprocess
-            import sys
-            subprocess.check_call([sys.executable, "-m", "spacy", "download", "en_core_web_sm"])
-            _nlp = spacy.load("en_core_web_sm", disable=["parser", "tagger", "lemmatizer"])
+        _nlp = spacy.load("en_core_web_sm", disable=["parser", "tagger", "lemmatizer"])
     return _nlp
 
 
