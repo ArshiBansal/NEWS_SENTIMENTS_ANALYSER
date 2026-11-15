@@ -221,9 +221,9 @@ with st.sidebar:
 
     # Load more / infinite scroll
     if "articles_per_category" not in st.session_state:
-        st.session_state.articles_per_category = 10
+        st.session_state.articles_per_category = 20
     if st.button("Load more articles", use_container_width=True):
-        st.session_state.articles_per_category += 10
+        st.session_state.articles_per_category += 20
         st.rerun()
     st.caption(f"Showing up to {st.session_state.articles_per_category} articles per category")
 
@@ -424,7 +424,7 @@ with st.sidebar:
     articles_per_category = st.slider(
         "Articles per category",
         1,
-        50,
+        100,
         st.session_state.articles_per_category,
     )
     st.session_state.articles_per_category = articles_per_category

@@ -580,7 +580,7 @@ REDDIT_HEADERS: dict[str, str] = {
 }
 
 
-def fetch_reddit_posts(subreddit: str, limit: int = 25) -> tuple[list[ArticleDict], str]:
+def fetch_reddit_posts(subreddit: str, limit: int = 50) -> tuple[list[ArticleDict], str]:
     """Fetch posts from a Reddit subreddit."""
     url = f"https://www.reddit.com/r/{subreddit}/hot.json?limit={limit}"
     try:
@@ -640,7 +640,7 @@ def fetch_reddit_posts(subreddit: str, limit: int = 25) -> tuple[list[ArticleDic
 HN_BASE_URL: str = "https://hacker-news.firebaseio.com/v0"
 
 
-def fetch_hackernews_stories(story_type: str = "top", limit: int = 25) -> tuple[list[ArticleDict], str]:
+def fetch_hackernews_stories(story_type: str = "top", limit: int = 50) -> tuple[list[ArticleDict], str]:
     """Fetch stories from HackerNews API."""
     try:
         # Get story IDs

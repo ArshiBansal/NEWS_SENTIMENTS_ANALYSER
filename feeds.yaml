@@ -6,9 +6,86 @@ feeds:
     - url: "https://cointelegraph.com/rss"
       source: "CoinTelegraph"
       is_crypto: true
+    - url: "https://bitcoinmagazine.com/.rss/full/"
+      source: "Bitcoin Magazine"
+      is_crypto: true
+    - url: "https://www.theblock.co/rss.xml"
+      source: "The Block"
+      is_crypto: true
+    - url: "https://decrypt.co/feed"
+      source: "Decrypt"
+      is_crypto: true
+    - url: "https://cryptoslate.com/feed/"
+      source: "CryptoSlate"
+      is_crypto: true
+    - url: "https://cryptonews.net/rss.xml"
+      source: "CryptoNews"
+      is_crypto: true
+    - url: "https://www.newsbtc.com/feed/"
+      source: "NewsBTC"
+      is_crypto: true
+    - url: "https://cryptobriefing.com/feed/"
+      source: "Crypto Briefing"
+      is_crypto: true
+    - url: "https://beincrypto.com/feed/"
+      source: "BeInCrypto"
+      is_crypto: true
   Stocks:
     - url: "https://feeds.finance.yahoo.com/rss/2.0/headline?s=^GSPC,AAPL,TSLA,MSFT,NVDA,GOOGL,AMZN,META"
       source: "Yahoo Finance"
+      is_crypto: false
+    - url: "https://www.marketwatch.com/rss/topstories"
+      source: "MarketWatch"
+      is_crypto: false
+    - url: "https://www.investing.com/rss/news_25.rss"
+      source: "Investing.com"
+      is_crypto: false
+    - url: "https://seekingalpha.com/market_currents.xml"
+      source: "Seeking Alpha"
+      is_crypto: false
+    - url: "https://www.fool.com/feeds/index.aspx"
+      source: "The Motley Fool"
+      is_crypto: false
+    - url: "https://feeds.feedburner.com/ZeroHedge"
+      source: "ZeroHedge"
+      is_crypto: false
+    - url: "https://www.bloomberg.com/feed/markets"
+      source: "Bloomberg Markets"
+      is_crypto: false
+    - url: "https://www.reuters.com/business/finance/rss"
+      source: "Reuters Finance"
+      is_crypto: false
+    - url: "https://www.cnbc.com/id/100003114/device/rss/rss.html"
+      source: "CNBC Markets"
+      is_crypto: false
+    - url: "https://www.ft.com/rss/home/uk"
+      source: "Financial Times"
+      is_crypto: false
+  Economy:
+    - url: "https://www.reuters.com/business/economics/rss"
+      source: "Reuters Economics"
+      is_crypto: false
+    - url: "https://www.bloomberg.com/feed/economics"
+      source: "Bloomberg Economics"
+      is_crypto: false
+    - url: "https://www.economist.com/finance-and-economics/rss.xml"
+      source: "The Economist Finance"
+      is_crypto: false
+    - url: "https://feeds.feedburner.com/WSJcom/WorldNews"
+      source: "Wall Street Journal"
+      is_crypto: false
+  Technology:
+    - url: "https://techcrunch.com/feed/"
+      source: "TechCrunch"
+      is_crypto: false
+    - url: "https://www.theverge.com/rss/index.xml"
+      source: "The Verge"
+      is_crypto: false
+    - url: "https://arstechnica.com/feed/"
+      source: "Ars Technica"
+      is_crypto: false
+    - url: "https://www.wired.com/feed/rss"
+      source: "Wired"
       is_crypto: false
   Social:
     - url: "reddit:cryptocurrency"
@@ -17,12 +94,24 @@ feeds:
     - url: "reddit:bitcoin"
       source: "Reddit r/bitcoin"
       is_crypto: true
+    - url: "reddit:ethereum"
+      source: "Reddit r/ethereum"
+      is_crypto: true
     - url: "reddit:wallstreetbets"
       source: "Reddit r/wallstreetbets"
+      is_crypto: false
+    - url: "reddit:stocks"
+      source: "Reddit r/stocks"
+      is_crypto: false
+    - url: "reddit:investing"
+      source: "Reddit r/investing"
       is_crypto: false
     - url: "hackernews:top"
       source: "HackerNews Top"
       is_crypto: false
     - url: "hackernews:new"
       source: "HackerNews New"
+      is_crypto: false
+    - url: "hackernews:best"
+      source: "HackerNews Best"
       is_crypto: false
