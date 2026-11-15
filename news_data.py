@@ -89,9 +89,15 @@ def _get_nlp() -> Any:
         env = os.environ.copy()
         env["SPACY_HOME"] = str(model_dir)
 
-        # Check if model already exists in our directory
-        model_path = model_dir / "en_core_web_sm"
-        if model_path.exists():
+        # Find existing model in our directory (spacy creates versioned subdirs)
+        def find_model_path(base: Path) -> Path | None:
+            for p in base.rglob("en_core_web_sm"):
+                if p.is_dir() and (p / "config.cfg").exists():
+                    return p
+            return None
+
+        model_path = find_model_path(model_dir)
+        if model_path:
             _nlp = spacy.load(str(model_path), disable=["parser", "tagger", "lemmatizer"])
             return _nlp
 
@@ -100,7 +106,11 @@ def _get_nlp() -> Any:
             sys.executable, "-m", "spacy", "download", "en_core_web_sm"
         ], env=env)
 
-        # Load from the downloaded location
+        # Find the downloaded model (spacy creates versioned subdirectory)
+        model_path = find_model_path(model_dir)
+        if not model_path:
+            raise RuntimeError(f"spaCy model not found in {model_dir} after download")
+
         _nlp = spacy.load(str(model_path), disable=["parser", "tagger", "lemmatizer"])
     return _nlp
 
