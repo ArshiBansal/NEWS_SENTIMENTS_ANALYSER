@@ -66,16 +66,53 @@ ArticleDict = dict[str, Any]
 
 
 def _get_nlp() -> Any:
-    """Lazily load spaCy model, downloading if needed."""
+    """Lazily load spaCy model, downloading to writable location if needed."""
     global _nlp
     if _nlp is None:
+        # Try loading normally first
         try:
             _nlp = spacy.load("en_core_web_sm", disable=["parser", "tagger", "lemmatizer"])
+            return _nlp
         except OSError:
-            import subprocess
-            import sys
-            subprocess.check_call([sys.executable, "-m", "spacy", "download", "en_core_web_sm"])
-            _nlp = spacy.load("en_core_web_sm", disable=["parser", "tagger", "lemmatizer"])
+            pass
+
+        # Download model to a writable directory
+        import subprocess
+        import sys
+        import os
+        from pathlib import Path
+
+        model_dir = Path(os.environ.get("SPACY_MODEL_DIR", "/tmp/spacy_models"))
+        model_dir.mkdir(parents=True, exist_ok=True)
+        model_path = model_dir / "en_core_web_sm"
+
+        # Check if model already exists in our directory
+        if model_path.exists():
+            _nlp = spacy.load(str(model_path), disable=["parser", "tagger", "lemmatizer"])
+            return _nlp
+
+        # Download using pip with --target to our writable directory
+        try:
+            subprocess.check_call([
+                sys.executable, "-m", "pip", "install",
+                "--target", str(model_dir),
+                "--no-deps",
+                "en_core_web_sm==3.8.0"
+            ])
+        except subprocess.CalledProcessError:
+            # Fallback: try spacy download command
+            try:
+                subprocess.check_call([
+                    sys.executable, "-m", "spacy", "download",
+                    "en_core_web_sm", "--target", str(model_dir)
+                ])
+            except subprocess.CalledProcessError:
+                # Last resort: try without target (may work in some environments)
+                subprocess.check_call([
+                    sys.executable, "-m", "spacy", "download", "en_core_web_sm"
+                ])
+
+        _nlp = spacy.load(str(model_path), disable=["parser", "tagger", "lemmatizer"])
     return _nlp
 
 
