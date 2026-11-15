@@ -82,7 +82,9 @@ st.markdown(
     <script>
     // Track focused article index
     let focusedIndex = -1;
-    const ARTICLE_SELECTOR = '[data-testid="stContainer"]:has(h3)';
+    // Streamlit containers with border=True have data-testid="stContainer"
+    // Articles have subheader (h3) inside
+    const ARTICLE_SELECTOR = '[data-testid="stContainer"]:has(h3), [data-testid="stVerticalBlock"]:has(h3)';
 
     function getArticles() {
         return Array.from(document.querySelectorAll(ARTICLE_SELECTOR));
@@ -112,7 +114,8 @@ st.markdown(
     function openFocusedArticle() {
         const articles = getArticles();
         if (focusedIndex >= 0 && focusedIndex < articles.length) {
-            const linkBtn = articles[focusedIndex].querySelector('button[kind="secondary"]');
+            // st.link_button renders as <a> tag with role="button"
+            const linkBtn = articles[focusedIndex].querySelector('a[role="button"], button[kind="secondary"]');
             if (linkBtn) linkBtn.click();
         }
     }
