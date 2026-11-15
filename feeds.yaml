@@ -1,0 +1,28 @@
+feeds:
+  Crypto:
+    - url: "https://www.coindesk.com/arc/outboundfeeds/rss/"
+      source: "CoinDesk"
+      is_crypto: true
+    - url: "https://cointelegraph.com/rss"
+      source: "CoinTelegraph"
+      is_crypto: true
+  Stocks:
+    - url: "https://feeds.finance.yahoo.com/rss/2.0/headline?s=^GSPC,AAPL,TSLA,MSFT,NVDA,GOOGL,AMZN,META"
+      source: "Yahoo Finance"
+      is_crypto: false
+  Social:
+    - url: "reddit:cryptocurrency"
+      source: "Reddit r/cryptocurrency"
+      is_crypto: true
+    - url: "reddit:bitcoin"
+      source: "Reddit r/bitcoin"
+      is_crypto: true
+    - url: "reddit:wallstreetbets"
+      source: "Reddit r/wallstreetbets"
+      is_crypto: false
+    - url: "hackernews:top"
+      source: "HackerNews Top"
+      is_crypto: false
+    - url: "hackernews:new"
+      source: "HackerNews New"
+      is_crypto: false

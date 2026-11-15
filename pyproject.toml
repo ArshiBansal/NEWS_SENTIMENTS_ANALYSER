@@ -1,0 +1,129 @@
+[project]
+name = "news-pulse"
+version = "0.1.0"
+description = "Multi-source market news dashboard with sentiment analysis"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "streamlit>=1.46.1,<2",
+    "requests>=2.32.0",
+    "beautifulsoup4>=4.12.0",
+    "vaderSentiment>=3.3.2",
+    "python-dateutil>=2.9.0",
+    "pyyaml>=6.0.0",
+    "rapidfuzz>=3.5.0",
+    "spacy>=3.7.0",
+    "langdetect>=1.0.9",
+    "feedparser>=6.0.11",
+    "requests-cache>=1.2.0",
+    "deep-translator>=1.11.0",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.5.0",
+    "black>=24.0.0",
+    "mypy>=1.10.0",
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+    "T20", # flake8-print
+    "ARG", # flake8-unused-arguments
+    "PTH", # flake8-use-pathlib
+    "ERA", # eradicate
+    "PL",  # pylint
+    "TRY", # tryceratops
+]
+ignore = [
+    "S101", # assert used (tests)
+    "TRY003", # avoid specifying long messages
+]
+fixable = ["I", "UP", "SIM", "T20", "ARG", "PTH", "ERA"]
+unfixable = ["B", "C4", "PL", "TRY"]
+exclude = [".venv", "venv", "__pycache__", ".pytest_cache", ".ruff_cache", ".mypy_cache"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+include = "\\.pyi?$"
+exclude = '''
+/(
+  \\.venv
+  | venv
+  | __pycache__
+  | \\.pytest_cache
+  | \\.ruff_cache
+  | \\.mypy_cache
+)/
+'''
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+strict_optional = true
+ignore_missing_imports = false
+exclude = [
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".mypy_cache",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["*Test*"]
+python_functions = ["test_*"]
+addopts = "-v --cov=news_data --cov-report=term-missing"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["news_data", "news"]
+omit = ["tests/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
