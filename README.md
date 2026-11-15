@@ -29,6 +29,16 @@ Browse crypto and stock headlines, compare their language, and export the storie
 | Summarize | Article count, average score, overall tone, and sentiment chart |
 | Export | Download the filtered results as CSV |
 | Recover | Inspect per-feed status; manually refresh cached results |
+| **New: Deduplication** | **Cross-source fuzzy matching (rapidfuzz) removes duplicate stories** |
+| **New: Entities** | **spaCy NER extracts ORG, PERSON, GPE, MONEY, PERCENT, DATE, PRODUCT, EVENT** |
+| **New: Shortcuts** | **Keyboard navigation: j/k, / search, o open, r refresh, ? help** |
+| **New: Columns** | **Customize displayed metadata columns via sidebar** |
+| **New: Infinite scroll** | **Load more articles with pagination** |
+| **New: OPML** | **Import/export feed lists as OPML** |
+| **New: Feed health** | **Uptime %, latency, error count per feed** |
+| **New: Custom feeds** | **Add arbitrary RSS/Atom URLs via sidebar** |
+| **New: Reddit/HN** | **Reddit subreddit and HackerNews JSON API sources** |
+| **New: Multi-lang** | **Auto-detect language + translate to English** |
 
 ### From question to reading list
 
@@ -84,8 +94,8 @@ flowchart LR
 | Fetch | Public feeds are requested with a timeout. Each feed is limited to 5 MB and up to 40 entries are processed. |
 | Parse | RSS and Atom entries are normalized; HTML in summaries is reduced to readable text. |
 | Validate | Only `http` and `https` article links are retained. |
-| Enrich | Headline sentiment and a keyword-based category are added. |
-| Present | Duplicate stories are removed, then the selected filters and sort order are applied. |
+| Enrich | Headline sentiment, keyword-based category, **named entities**, and **language detection/translation** are added. |
+| Present | Duplicate stories are removed via **fuzzy matching**, then the selected filters and sort order are applied. |
 
 ### A feed fails; the dashboard keeps going
 
@@ -110,10 +120,15 @@ flowchart TD
 ## Sources and refresh behavior
 
 | Market | Source | Feed |
-|:--|:--|:--|
+|:--|:--|
 | Crypto | CoinDesk | Public RSS |
 | Crypto | CoinTelegraph | Public RSS |
 | Stocks | Yahoo Finance | Public RSS |
+| **Social** | **Reddit r/cryptocurrency** | **JSON API** |
+| **Social** | **Reddit r/bitcoin** | **JSON API** |
+| **Social** | **Reddit r/wallstreetbets** | **JSON API** |
+| **Social** | **HackerNews Top** | **JSON API** |
+| **Social** | **HackerNews New** | **JSON API** |
 
 Feed results are cached for **15 minutes**. **Refresh feeds now** clears that cache and retries the selected sources. If one provider is unavailable, the dashboard reports its error and can still show stories from other providers.
 
@@ -127,6 +142,7 @@ Feed results are cached for **15 minutes**. **Refresh feeds now** clears that ca
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
+python -m spacy download en_core_web_sm
 streamlit run news.py
 ```
 
@@ -156,8 +172,10 @@ Connect the repository and branch in Streamlit Community Cloud, then select the 
 ├── news.py                    # Streamlit interface and dashboard workflow
 ├── news_data.py               # Feed retrieval, parsing, dates, and classification
 ├── requirements.txt           # Runtime dependencies
+├── feeds.yaml                 # Feed configuration (RSS, Reddit, HackerNews)
 ├── .streamlit/config.toml      # Streamlit theme and server settings
 ├── tests/test_news_data.py     # Feed and date unit tests
+├── tests/test_news_ui.py       # Streamlit AppTest UI tests
 ├── .github/workflows/tests.yml # CI checks
 └── DEPLOYMENT.md               # Community Cloud deployment guide
 ```
@@ -172,6 +190,10 @@ Connect the repository and branch in Streamlit Community Cloud, then select the 
 | [Beautiful Soup](https://www.crummy.com/software/BeautifulSoup/) | Cleaning HTML summaries |
 | [VADER Sentiment](https://github.com/cjhutto/vaderSentiment) | Lexicon-based headline scoring |
 | [python-dateutil](https://dateutil.readthedocs.io/) | Publication-date parsing |
+| [rapidfuzz](https://github.com/maxbachmann/rapidfuzz) | Fuzzy string matching for deduplication |
+| [spaCy](https://spacy.io/) | Named entity recognition (NER) |
+| [langdetect](https://github.com/Mimino666/langdetect) | Language detection |
+| [deep-translator](https://github.com/nidhaloff/deep-translator) | Translation to English |
 
 GitHub Actions runs unit tests and syntax checks on Python 3.11, 3.12, and 3.13 for pushes and pull requests.
 
@@ -182,6 +204,9 @@ GitHub Actions runs unit tests and syntax checks on Python 3.11, 3.12, and 3.13 
 - **Feed coverage is external.** Publishers control their feed uptime and the stories they include.
 - **Cached results are not instantaneous.** Articles may be up to 15 minutes old unless manually refreshed.
 - **No trading signals.** The app does not fetch prices, forecast returns, or recommend investments.
+- **Deduplication is fuzzy.** Similar headlines across sources are merged; threshold is conservative to avoid false positives.
+- **Entity extraction is English-centric.** spaCy NER runs on English text; non-English articles are translated first.
+- **Translation uses free Google Translate.** Rate limits may apply under heavy load.
 
 > *“A score is a useful index into the text—not a substitute for reading the story.”*
 
