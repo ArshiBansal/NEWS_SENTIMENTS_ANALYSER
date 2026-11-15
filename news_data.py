@@ -76,7 +76,7 @@ def _get_nlp() -> Any:
         except OSError:
             pass
 
-        # Download model to a writable directory
+        # Download model to a writable directory using SPACY_HOME
         import subprocess
         import sys
         import os
@@ -84,34 +84,23 @@ def _get_nlp() -> Any:
 
         model_dir = Path(os.environ.get("SPACY_MODEL_DIR", "/tmp/spacy_models"))
         model_dir.mkdir(parents=True, exist_ok=True)
-        model_path = model_dir / "en_core_web_sm"
+
+        # Set SPACY_HOME so spacy downloads to our directory
+        env = os.environ.copy()
+        env["SPACY_HOME"] = str(model_dir)
 
         # Check if model already exists in our directory
+        model_path = model_dir / "en_core_web_sm"
         if model_path.exists():
             _nlp = spacy.load(str(model_path), disable=["parser", "tagger", "lemmatizer"])
             return _nlp
 
-        # Download using pip with --target to our writable directory
-        try:
-            subprocess.check_call([
-                sys.executable, "-m", "pip", "install",
-                "--target", str(model_dir),
-                "--no-deps",
-                "en_core_web_sm==3.8.0"
-            ])
-        except subprocess.CalledProcessError:
-            # Fallback: try spacy download command
-            try:
-                subprocess.check_call([
-                    sys.executable, "-m", "spacy", "download",
-                    "en_core_web_sm", "--target", str(model_dir)
-                ])
-            except subprocess.CalledProcessError:
-                # Last resort: try without target (may work in some environments)
-                subprocess.check_call([
-                    sys.executable, "-m", "spacy", "download", "en_core_web_sm"
-                ])
+        # Download using spacy CLI with SPACY_HOME set
+        subprocess.check_call([
+            sys.executable, "-m", "spacy", "download", "en_core_web_sm"
+        ], env=env)
 
+        # Load from the downloaded location
         _nlp = spacy.load(str(model_path), disable=["parser", "tagger", "lemmatizer"])
     return _nlp
 
